@@ -1,4 +1,6 @@
 spring:
+  elasticsearch:
+  uris: http://localhost:9200   
   application:
     name: semantic
   ai:
@@ -25,9 +27,8 @@ spring:
       
     vectorstore:
       elasticsearch:
-        uris=http://localhost:9200
-        index-name: operation_logs        
+        index-name: operation_logs_vector       
         initialize-schema: true        
         dimensions: 768                 
         embedding-field-name: embedding  
-        similarity: dot_product      
+        similarity: cosine       
