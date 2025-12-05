@@ -14,17 +14,9 @@ public class SemanticSearchController {
     public SemanticSearchController(SemanticSearchService searchService) {
         this.searchService = searchService;
     }
-    @GetMapping("/semantic")
-    public List<Document> semanticSearch(
-            @RequestParam("query") String query,
-            @RequestParam(value = "createdDateFrom", required = false) String createdDateFrom,
-            @RequestParam(value = "createdDateTo", required = false) String createdDateTo) {
 
-        SearchQueryRequest request = new SearchQueryRequest();
-        request.setQuery(query);
-        request.setCreatedDateFrom(createdDateFrom);
-        request.setCreatedDateTo(createdDateTo);
-
+    @PostMapping("/semantic")
+    public List<Document> semanticSearch(@RequestBody SearchQueryRequest request) {
         return searchService.search(request);
     }
 }
