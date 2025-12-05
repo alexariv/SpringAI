@@ -42,11 +42,7 @@ public class SemanticSearchService {
 
         return vectorStore.similaritySearch(searchRequest);
     }
-
-    /**
-     * Build a filter expression that checks either createdDate OR eventStart
-     * falls inside the given date range (yyyy-MM-dd).
-     */
+    
     private String buildDateFilter(String fromDate, String toDate) {
         boolean hasFrom = StringUtils.hasText(fromDate);
         boolean hasTo = StringUtils.hasText(toDate);
@@ -85,7 +81,7 @@ public class SemanticSearchService {
             return null;
         }
 
-        // Either createdDate in range OR eventStart in range
+        // createdDate or eventStart in range
         return "(" + String.join(" || ", fieldFilters) + ")";
     }
 

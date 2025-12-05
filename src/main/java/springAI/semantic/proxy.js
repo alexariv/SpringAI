@@ -3,18 +3,11 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const yaml = require('js-yaml');
-
-// If Node < 18, uncomment and install node-fetch:
-//   npm install node-fetch
-// const fetch = require('node-fetch');
-
 const app = express();
 app.use(express.json());
 
-// Serve static files (index.html in this directory)
-app.use(express.static(__dirname));
 
-// ---- Optional: model name from Spring's application.yml ----
+app.use(express.static(__dirname));
 const APP_YAML_PATH = path.join(__dirname, '..', '..', '..', 'resources', 'application.yml');
 
 let cachedModel = null;
@@ -35,7 +28,7 @@ app.get('/api/model', (req, res) => {
   }
 });
 
-// ---- Proxy POST /api/search/semantic to Spring via SSH tunnel ----
+// Proxy POST /api/search/semantic to Spring via SSH tunnel ----
 app.post('/api/search/semantic', async (req, res) => {
   const start = process.hrtime.bigint();
   try {
