@@ -3,6 +3,8 @@ package springAI.semantic;
 public class SearchQueryRequest {
 
     private String query;
+
+    // Optional date filters from UI
     private String createdDateFrom;
     private String createdDateTo;
 

@@ -20,3 +20,5 @@ public class SemanticSearchController {
         return searchService.search(request);
     }
 }
+
+
