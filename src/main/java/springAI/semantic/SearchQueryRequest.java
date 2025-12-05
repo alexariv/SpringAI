@@ -3,29 +3,31 @@ package springAI.semantic;
 public class SearchQueryRequest {
 
     private String query;
-
-    // optional time range
-    private Long fromEpochMs;   // inclusive lower bound
-    private Long toEpochMs;     // inclusive upper bound
+    private String createdDateFrom;
+    private String createdDateTo;
 
     public String getQuery() {
         return query;
     }
+
     public void setQuery(String query) {
         this.query = query;
     }
 
-    public Long getFromEpochMs() {
-        return fromEpochMs;
-    }
-    public void setFromEpochMs(Long fromEpochMs) {
-        this.fromEpochMs = fromEpochMs;
+    public String getCreatedDateFrom() {
+        return createdDateFrom;
     }
 
-    public Long getToEpochMs() {
-        return toEpochMs;
+    public void setCreatedDateFrom(String createdDateFrom) {
+        this.createdDateFrom = createdDateFrom;
     }
-    public void setToEpochMs(Long toEpochMs) {
-        this.toEpochMs = toEpochMs;
+
+    public String getCreatedDateTo() {
+        return createdDateTo;
+    }
+
+    public void setCreatedDateTo(String createdDateTo) {
+        this.createdDateTo = createdDateTo;
     }
 }
+
