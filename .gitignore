@@ -33,3 +33,4 @@ build/
 .vscode/
 src/main/resources/onnx-output/model.onnx
 src/main/resources/onnx-output/
+*Zone.Identifier
