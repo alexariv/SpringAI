@@ -16,7 +16,7 @@ public class SemanticSearchController {
     }
 
     @PostMapping("/semantic")
-    public List<Document> semanticSearch(@RequestBody SearchQueryRequest request) {
+    public SemanticSearchResponse semanticSearch(@RequestBody SearchQueryRequest request) {
         return searchService.search(request);
     }
 }

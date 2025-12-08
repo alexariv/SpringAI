@@ -3,13 +3,14 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const yaml = require('js-yaml');
+const fetch = require('node-fetch');
 
 const app = express();
 app.use(express.json());
 
 app.use(express.static(__dirname));
 
-const APP_YAML_PATH = path.join(__dirname, '..', '..', '..', 'resources', 'application.yml');
+const APP_YAML_PATH = path.join(__dirname, 'src', 'main', 'resources', 'application.yaml');
 
 let cachedModel = null;
 app.get('/api/model', (req, res) => {
