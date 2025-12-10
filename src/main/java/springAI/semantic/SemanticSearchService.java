@@ -1,15 +1,15 @@
 package springAI.semantic;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.elasticsearch.ElasticsearchVectorStore;
-import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import java.util.stream.Collectors;
-
-import java.util.ArrayList;
-import java.util.List;
 
 @Service
 public class SemanticSearchService {
@@ -41,7 +41,7 @@ public class SemanticSearchService {
 
         SearchRequest searchRequest = SearchRequest.builder()
                 .query(semanticQuery)
-                .topK(20)
+                .topK(2)
                 .filterExpression(finalFilterExpression)  // can be null
                 .build();
         List<Document> docs = vectorStore.similaritySearch(searchRequest);
