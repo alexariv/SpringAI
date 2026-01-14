@@ -19,11 +19,11 @@
       min-height:2.4rem; max-height:40vh; box-sizing:border-box;
       white-space:pre-wrap; word-break:break-word;
     }
-    #send {
+    #simpleSearch, #advancedSearch {
       flex:0 0 auto; width:110px; height:2.6rem; font-size:1rem;
       border:1px solid #bbb; border-radius:.5rem; background:#f5f5f5; cursor:pointer;
     }
-    #send:disabled { opacity:.6; cursor:not-allowed; }
+    #simpleSearch:disabled, #advancedSearch:disabled { opacity:.6; cursor:not-allowed; }
 
     .date-range { display:flex; align-items:center; flex-wrap:wrap; gap:0.5rem; }
     .date-range label { font-size:.9rem; }
@@ -57,7 +57,8 @@
     <div class="prompt-wrap">
       <textarea id="prompt" placeholder="Enter prompt"></textarea>
     </div>
-    <button id="send" type="button">Search</button>
+    <button id="simpleSearch" type="button">Simple Search</button>
+    <button id="advancedSearch" type="button">Advanced Search</button>
   </div>
 
   <div class="row muted" id="timing"></div>
@@ -65,15 +66,22 @@
   <h2>Results</h2>
   <div id="response" class="out"></div>
 
+  <div id="analysisSection" style="display:none;">
+  <h2>Analysis</h2>
+  <div id="analysis" class="out"></div>
+</div>
   <script>
     const prompts = document.getElementById('prompt');
     const responses = document.getElementById('response');
-    const btn = document.getElementById('send');
+    const simpleBtn = document.getElementById('simpleSearch');
+    const advancedBtn = document.getElementById('advancedSearch');
     const timings = document.getElementById('timing');
     const models = document.getElementById('modelName');
     const dateFrom = document.getElementById('dateFrom');
     const dateTo = document.getElementById('dateTo');
     const clearRangeBtn = document.getElementById('clearRange');
+    const analysisSection = document.getElementById('analysisSection');
+    const analysisDiv = document.getElementById('analysis');
 
     // Model name
     (async () => {
@@ -98,13 +106,15 @@
       dateTo.value = '';
     });
 
-    async function send() {
+    async function simpleSearch() {
       const query = prompts.value.trim();
       if (!query) return;
 
-      btn.disabled = true;
+      simpleBtn.disabled = true;
+      advancedBtn.disabled = true;
       responses.textContent = 'Waiting for search results…';
       responses.classList.add('waiting');
+      analysisSection.style.display = 'none';
       timings.textContent = '';
 
       const payload = {
@@ -123,7 +133,7 @@
         const t1 = performance.now();
 
         const totalSec = ((t1 - t0) / 1000).toFixed(2);
-        timings.textContent = `Total Time: ${totalSec} s`;
+        timings.textContent = `Search Time: ${totalSec} s`;
 
         const text = await res.text();
         let data;
@@ -139,15 +149,106 @@
         responses.textContent = 'Error: ' + err.message;
         responses.classList.remove('waiting');
       } finally {
-        btn.disabled = false;
+        simpleBtn.disabled = false;
+        advancedBtn.disabled = false;
       }
     }
+// Advanced Search - gets hits + analysis
+  async function advancedSearch() {
+    const query = prompts.value.trim();
+    if (!query) return;
 
-    btn.addEventListener('click', send);
+    simpleBtn.disabled = true;
+    advancedBtn.disabled = true;
+    responses.textContent = 'Waiting for search results…';
+    responses.classList.add('waiting');
+    analysisSection.style.display = 'none';
+    timings.textContent = '';
+
+    const payload = {
+      query,
+      createdDateFrom: dateFrom.value || null,
+      createdDateTo: dateTo.value || null
+    };
+
+    const t0 = performance.now();
+    let searchData = null;
+
+    try {
+      // Step 1: Get search results
+      const searchRes = await fetch('/api/search/semantic', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const t1 = performance.now();
+
+      const searchText = await searchRes.text();
+      try { searchData = JSON.parse(searchText); } catch {}
+
+      if (!searchRes.ok) {
+        responses.textContent = 'Error ' + searchRes.status + ': ' + (searchData?.message || searchText);
+        responses.classList.remove('waiting');
+        return;
+      }
+
+      // Display hits immediately
+      responses.textContent = JSON.stringify(searchData, null, 2);
+      responses.classList.remove('waiting');
+
+      const searchSec = ((t1 - t0) / 1000).toFixed(2);
+      timings.textContent = `Search Time: ${searchSec} s | Analyzing...`;
+
+      // Get analysis of results
+      analysisSection.style.display = 'block';
+      analysisDiv.textContent = 'Analyzing results...';
+      analysisDiv.classList.add('waiting');
+
+      const analysisRes = await fetch('/api/search/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: query,
+          hits: searchData.hits
+        }),
+      });
+      const t2 = performance.now();
+
+      const analysisText = await analysisRes.text();
+      let analysisData;
+      try { analysisData = JSON.parse(analysisText); } catch {}
+
+      if (!analysisRes.ok) {
+        analysisDiv.textContent = 'Error ' + analysisRes.status + ': ' + (analysisData?.message || analysisText);
+      } else {
+        analysisDiv.textContent = analysisData.analysis || 'No analysis available';
+      }
+      analysisDiv.classList.remove('waiting');
+
+      const analysisSec = ((t2 - t1) / 1000).toFixed(2);
+      const totalSec = ((t2 - t0) / 1000).toFixed(2);
+      timings.textContent = `Search: ${searchSec} s | Analysis: ${analysisSec} s | Total: ${totalSec} s`;
+    
+    } catch (err) {
+      if (!searchData) {
+        responses.textContent = 'Error: ' + err.message;
+        responses.classList.remove('waiting');
+      } else {
+        analysisDiv.textContent = 'Error getting analysis: ' + err.message;
+        analysisDiv.classList.remove('waiting');
+      }
+    } finally {
+      simpleBtn.disabled = false;
+      advancedBtn.disabled = false;
+    }
+  }
+
+  simpleBtn.addEventListener('click', simpleSearch);
+  advancedBtn.addEventListener('click', advancedSearch);
     prompts.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        send();
+        simpleSearch();
       }
     });
   </script>

@@ -16,7 +16,11 @@ public class SemanticSearchController {
     }
 
     @PostMapping("/semantic")
-    public SemanticSearchResponse semanticSearch(@RequestBody SearchQueryRequest request) {
+    public SimpleSearchResponse semanticSearch(@RequestBody SearchQueryRequest request) {
         return searchService.search(request);
+    }
+    @PostMapping("/analyze") // LLM analysis endpoint
+    public AnalysisResponse analyzeResults(@RequestBody AnalysisRequest request) {
+    return searchService.analyze(request);
     }
 }

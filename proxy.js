@@ -64,6 +64,41 @@ app.post('/api/search/semantic', async (req, res) => {
     res.status(500).json({ error: String(e) });
   }
 });
+//Proxy POST /api/search/analyze to Spring through SSH tunnel
+app.post('/api/search/analyze', async (req, res) => {
+  const start = process.hrtime.bigint();
+  try {
+    const backendUrl = 'http://127.0.0.1:3000/api/search/analyze';
+
+    console.log('Proxy POST to:', backendUrl, 'body:', req.body);
+
+    const response = await fetch(backendUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body),
+    });
+
+    const text = await response.text();
+    const end = process.hrtime.bigint();
+    const upstreamSec = Number(end - start) / 1e9;
+
+    let payload = text;
+    try { payload = JSON.parse(text); } catch {}
+
+    res.set('X-Upstream-Duration-s', upstreamSec.toFixed(2));
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Expose-Headers', 'X-Upstream-Duration-s');
+
+    res.status(response.status).send(payload);
+  } catch (e) {
+    const end = process.hrtime.bigint();
+    const upstreamSec = Number(end - start) / 1e9;
+    console.error('Error in proxy /api/search/analyze:', e);
+
+    res.set('X-Upstream-Duration-s', upstreamSec.toFixed(2));
+    res.status(500).json({ error: String(e) });
+  }
+});
 
 // Start proxy server
 app.listen(9000, () => {
