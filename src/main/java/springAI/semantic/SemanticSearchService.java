@@ -26,7 +26,7 @@ public class SemanticSearchService {
         this.chatClient = chatClientBuilder.build();
     }
 
-    public SemanticSearchResponse search(SearchQueryRequest request) {
+    public SimpleSearchResponse search(SearchQueryRequest request) {
         
         QueryPlan plan = plannerService.plan(request.getQuery());
 
@@ -55,7 +55,12 @@ public class SemanticSearchService {
 
         return new SimpleSearchResponse(hits);
     }
-
+    
+    public AnalysisResponse analyze(AnalysisRequest request) {
+    String analysis = analyzeWithLlm(request.getQuery(), request.getHits());
+    return new AnalysisResponse(analysis);
+    }
+    
     /**
      * Build a filter expression that checks either createdDate OR eventStart
      * falls inside the given date range (yyyy-MM-dd).
