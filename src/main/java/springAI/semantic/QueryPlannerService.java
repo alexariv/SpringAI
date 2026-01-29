@@ -29,6 +29,55 @@ public class QueryPlannerService {
                 - level        
                 - logbooks_name  
                 - tags_name     
+
+            logbooks_name options (case-sensitive):
+            - "Acc Control Software"
+            - "Controls Commissioning"
+            - "Diagnositics"
+            - "Electronics Maintenance"
+            - "Fault Reports"
+            - "gbassi"
+            - "LOTO"
+            - "Machine Physics"
+            - "Mechanical Technicians"
+            - "Operations"
+            
+            tags_name options (case-sensitive):
+            - "Active Interlock"
+            - "Alarm"
+            - "ARMs"
+            - "Authorization"
+            - "Beam Available"
+            - "Beam Dump"
+            - "Beamline"
+            - "Call In/Called"
+            - "Checklists"
+            - "Controls"
+            - "Cryo"
+            - "Diagnostics"
+            - "EPS/PPS"
+            - "Fault"
+            - "Feedback"
+            - "FLOCO"
+            - "Injection"
+            - "Interlock Tests"
+            - "Maintenance"
+            - "MASAR"
+            - "Power Supplies"
+            - "RCT"
+            - "Reference"
+            - "RF Systems"
+            - "SoftIOC"
+            - "Start Shift"
+            - "Studies"
+            - "Summary"
+            - "Testing"
+            - "Timely Order"
+            - "Timing Systems"
+            - "Utilities"
+            - "Vacuum"
+            - "Work Permits"
+
             Output format:
             - Return ONLY a JSON object with the fields:
               {

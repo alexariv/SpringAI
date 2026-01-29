@@ -36,8 +36,9 @@ public class SemanticSearchService {
                 request.getCreatedDateFrom(),
                 request.getCreatedDateTo()
         );
+        String logbookTagFilter = buildlogbookTagFilter(request.getLogbooks(), request.getTags());
 
-        String finalFilterExpression = combineFilters(llmFilter, dateFilter);
+        String finalFilterExpression = combineFilters(llmFilter, dateFilter, logbookTagFilter);
 
         SearchRequest searchRequest = SearchRequest.builder()
                 .query(semanticQuery)
@@ -106,22 +107,52 @@ public class SemanticSearchService {
         // Either createdDate in range OR eventStart in range
         return "(" + String.join(" || ", fieldFilters) + ")";
     }
-
-    private String combineFilters(String llmFilter, String dateFilter) {
-        boolean hasLlm = StringUtils.hasText(llmFilter);
-        boolean hasDate = StringUtils.hasText(dateFilter);
-
-        if (!hasLlm && !hasDate) {
-            return null;
-        }
-        if (!hasLlm) {
-            return dateFilter;
-        }
-        if (!hasDate) {
-            return llmFilter;
-        }
-        return llmFilter + " && " + dateFilter;
+    
+    private String buildlogbookTagFilter(List<String> logbooks, List<String> tags) {
+        List<String> parts = new ArrayList<>();
+        if (logbooks != null && !logbooks.isEmpty()) {
+            if (logbooks.size() == 1) {
+            parts.add("logbooks_name == '" + logbooks.get(0) + "'");
+            } else {
+                String logbookOr = logbooks.stream()
+                .map(lb -> "logbooks_name == '" + lb + "'")
+                .collect(Collectors.joining(" || "));
+                parts.add("(" + logbookOr + ")");
+            }
     }
+    
+    if (tags != null && !tags.isEmpty()) {
+        String tagsList = tags.stream()
+            .map(t -> "'" + t + "'")
+            .collect(Collectors.joining(", "));
+            parts.add("tags_name in [" + tagsList + "]");
+    }
+    
+    if (parts.isEmpty()) {
+        return null;
+    }
+    
+    return String.join(" && ", parts);
+    }
+
+    private String combineFilters(String llmFilter, String dateFilter, String uiFilter) {
+        List<String> nonNullFilters = new ArrayList<>();
+        
+        if (StringUtils.hasText(llmFilter)) {
+            nonNullFilters.add(llmFilter);}
+
+        if (StringUtils.hasText(dateFilter)) {
+            nonNullFilters.add(dateFilter);}
+
+        if (StringUtils.hasText(uiFilter)) {
+            nonNullFilters.add(uiFilter);}
+        
+        if (nonNullFilters.isEmpty()) {
+            return null; }
+    
+    return String.join(" && ", nonNullFilters);
+    }
+
     private String analyzeWithLlm(String originalQuestion, List<SearchHitDto> hits) {
 
         if (hits.isEmpty()) {
