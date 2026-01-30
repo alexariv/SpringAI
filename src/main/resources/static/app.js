@@ -240,7 +240,7 @@ function displayDetail(hit) {
     html += `
       <div class="analysis-section">
         <h3>Analysis</h3>
-        <div>${currentAnalysis}</div>
+         <div>${marked.parse(currentAnalysis)}</div>
       </div>
     `;
   }
@@ -294,6 +294,7 @@ function displayAnalysis(analysis) {
       <div class="analysis-section">
         <h3>Analysis</h3>
         <div>${analysis}</div>
+        <div>${marked.parse(analysis)}</div>
       </div>
     `;
   }
@@ -303,7 +304,7 @@ function showAnalysisLoading() {
   const panel = document.getElementById('detailPanel');
   panel.innerHTML = `
     <div class="analysis-section">
-      <h3>Analysis</h3>
+      <h3>Analysis of Results Found</h3>
       <div class="loading">Analyzing logs...</div>
     </div>
   `;
