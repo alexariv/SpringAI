@@ -7,12 +7,12 @@ const yaml = require('js-yaml');
 const app = express();
 app.use(express.json());
 
-app.use(express.static(__dirname));
+app.use(express.static(path.join(__dirname, 'src', 'main', 'resources', 'static')));
 
 const APP_YAML_PATH = path.join(__dirname, 'src', 'main', 'resources', 'application.yaml');
 
 let cachedModel = null;
-app.get('/api/model', (req, res) => {
+function loadModelName() {
   try {
     const raw = fs.readFileSync(APP_YAML_PATH, 'utf8');
     const doc = yaml.load(raw);
@@ -22,20 +22,25 @@ app.get('/api/model', (req, res) => {
       doc?.spring?.ai?.model ||
       'unknown';
     cachedModel = model;
-    res.json({ model });
+    return model;
   } catch (e) {
-    console.error('Error reading application.yml:', e);
-    res.json({ model: cachedModel || 'unknown' });
+    console.error('Error reading application.yaml:', e.message);
+    return 'unknown';
   }
-});
+}
 
 // Proxy POST /api/search/semantic to Spring through SSH tunnel
 app.post('/api/search/semantic', async (req, res) => {
-  const start = process.hrtime.bigint();
+  const start = Date.now();
   try {
     const backendUrl = 'http://127.0.0.1:3000/api/search/semantic';
-
-    console.log('Proxy POST to:', backendUrl, 'body:', req.body);
+    console.log('[SEARCH] Starting search...');
+    console.log('[SEARCH] Query:', req.body.query);
+    console.log('[SEARCH] Filters:', {
+      logbooks: req.body.logbooks,
+      tags: req.body.tags,
+      dateRange: `${req.body.createdDateFrom || 'any'} to ${req.body.createdDateTo || 'any'}`
+    });
 
     const response = await fetch(backendUrl, {
       method: 'POST',
@@ -44,33 +49,30 @@ app.post('/api/search/semantic', async (req, res) => {
     });
 
     const text = await response.text();
-    const end = process.hrtime.bigint();
-    const upstreamSec = Number(end - start) / 1e9;
-
+    const duration = ((Date.now() - start) / 1000).toFixed(2);
+    
+    console.log(`[SEARCH] Completed in ${duration}s`);
+    
     let payload = text;
-    try { payload = JSON.parse(text); } catch {}
-
-    res.set('X-Upstream-Duration-s', upstreamSec.toFixed(2));
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Expose-Headers', 'X-Upstream-Duration-s');
+    try { 
+      payload = JSON.parse(text);
+      console.log(`[SEARCH] Found ${payload.hits?.length || 0} results`);
+    } catch {}
 
     res.status(response.status).send(payload);
   } catch (e) {
-    const end = process.hrtime.bigint();
-    const upstreamSec = Number(end - start) / 1e9;
-    console.error('Error in proxy /api/search/semantic:', e);
-
-    res.set('X-Upstream-Duration-s', upstreamSec.toFixed(2));
+    const duration = ((Date.now() - start) / 1000).toFixed(2);
+    console.error(`[SEARCH] Error after ${duration}s:`, e.message);
     res.status(500).json({ error: String(e) });
   }
 });
-//Proxy POST /api/search/analyze to Spring through SSH tunnel
+
+// Proxy POST /api/search/analyze
 app.post('/api/search/analyze', async (req, res) => {
-  const start = process.hrtime.bigint();
+  const start = Date.now();
   try {
     const backendUrl = 'http://127.0.0.1:3000/api/search/analyze';
-
-    console.log('Proxy POST to:', backendUrl, 'body:', req.body);
+    console.log('[ANALYSIS] Starting analysis...');
 
     const response = await fetch(backendUrl, {
       method: 'POST',
@@ -79,28 +81,24 @@ app.post('/api/search/analyze', async (req, res) => {
     });
 
     const text = await response.text();
-    const end = process.hrtime.bigint();
-    const upstreamSec = Number(end - start) / 1e9;
-
+    const duration = ((Date.now() - start) / 1000).toFixed(2);
+    
+    console.log(`[ANALYSIS] Completed in ${duration}s`);
+    
     let payload = text;
     try { payload = JSON.parse(text); } catch {}
 
-    res.set('X-Upstream-Duration-s', upstreamSec.toFixed(2));
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Expose-Headers', 'X-Upstream-Duration-s');
-
     res.status(response.status).send(payload);
   } catch (e) {
-    const end = process.hrtime.bigint();
-    const upstreamSec = Number(end - start) / 1e9;
-    console.error('Error in proxy /api/search/analyze:', e);
-
-    res.set('X-Upstream-Duration-s', upstreamSec.toFixed(2));
+    const duration = ((Date.now() - start) / 1000).toFixed(2);
+    console.error(`[ANALYSIS] Error after ${duration}s:`, e.message);
     res.status(500).json({ error: String(e) });
   }
 });
 
 // Start proxy server
 app.listen(9000, () => {
+  const modelName = loadModelName();
   console.log('Now running @ http://localhost:9000/index.html');
+  console.log(`LLM Model: ${modelName}`);
 });
