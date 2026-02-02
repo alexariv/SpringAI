@@ -206,7 +206,7 @@ function displayResults(hits) {
     
     const title = document.createElement('div');
     title.className = 'result-title';
-    title.textContent = hit.content || 'No description';
+    title.textContent = `#${index + 1}: ${hit.content || 'No description'}`;
     
     const meta = document.createElement('div');
     meta.className = 'result-meta';
@@ -229,6 +229,24 @@ function selectResult(index, element) {
   
   displayDetail(currentResults[index]);
 }
+function clickEntryNum(htmlContent) {
+  // Match #number 
+  return htmlContent.replace(/(?<!^|\n)#(\d+)/g, (match, num) => {
+    return `<a href="#" class="entry-link" onclick="resultNum(${num}); return false;">#${num}</a>`;
+  });
+}
+
+// Select a result by its number (1-indexed)
+function resultNum(num) {
+  const index = parseInt(num) - 1;
+  if (index >= 0 && index < currentResults.length) {
+    const resultItems = document.querySelectorAll('.result-item');
+    if (resultItems[index]) {
+      selectResult(index, resultItems[index]);
+      resultItems[index].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+}
 
 function displayDetail(hit) {
   const panel = document.getElementById('detailPanel');
@@ -237,10 +255,12 @@ function displayDetail(hit) {
   
   // Display analysis (advanced search)
   if (currentAnalysis) {
+    const prettyAnalysis = marked.parse(currentAnalysis); 
+    const linkedAnalysis = clickEntryNum(prettyAnalysis);
     html += `
       <div class="analysis-section">
         <h3>Analysis</h3>
-         <div>${marked.parse(currentAnalysis)}</div>
+          <div>${linkedAnalysis}</div> 
       </div>
     `;
   }
@@ -290,11 +310,12 @@ function displayAnalysis(analysis) {
   } else {
     // Just show analysis
     const panel = document.getElementById('detailPanel');
+    const prettyAnalysis = marked.parse(analysis);
+    const linkedAnalysis = clickEntryNum(prettyAnalysis);
     panel.innerHTML = `
       <div class="analysis-section">
         <h3>Analysis</h3>
-        <div>${analysis}</div>
-        <div>${marked.parse(analysis)}</div>
+        <div>${linkedAnalysis}</div>
       </div>
     `;
   }
