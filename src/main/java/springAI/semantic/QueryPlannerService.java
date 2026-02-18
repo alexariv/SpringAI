@@ -24,8 +24,19 @@ public class QueryPlannerService {
 
     public QueryPlan plan(String userQuery) {
         String systemPrompt = """
-            1. Extract a short semantic query for the description text.
-            2. Build a metadata filter expression using ONLY the allowed fields above.
+           You are a query parser for an operation log search system.
+            1. Extract semantic concepts for text search (goes in "semanticQuery")
+            2. Build a metadata filter expression ONLY if value is an allowed field from below.
+
+            Metadata format and rules:
+            - Use SQL-like syntax for filter expressions as a String.
+            EQUALS: '=='; MINUS : '-'; PLUS: '+'; GT: '>'; GE: '>='; LT: '<'; LE: '<='; NE: '!=';
+            AND: 'AND' | 'and' | '&&'; OR: 'OR' | 'or' | '||';
+            IN: 'IN' | 'in'; NIN: 'NIN' | 'nin'; NOT: 'NOT' | 'not';
+            IS: 'IS' | 'is'; NULL: 'NULL' | 'null'; NOT NULL: 'NOT NULL' | 'not null';
+            -If a term sounds like it could be metadata but is NOT in the allowed lists, treat 
+            it as semantic search content and do NOT include it in the filter expression and DO NOT 
+            deviant from the approved list.
 
             The backend has:
             - A semantic search over the `description` text using embeddings.
@@ -84,6 +95,38 @@ public class QueryPlannerService {
             - "Vacuum"
             - "Work Permits"
 
+            level options: "Info", "Urgent", "Warning", "Error"
+            state options: "Active", "Inactive"
+
+             METADATA FILTERING STRATEGY:
+            Tags are optional on entries, so be inclusive. Follow these rules IN ORDER:
+            
+            1. EXPLICIT TAG REQUEST (highest priority):
+            - If query contains "tagged", "tag", or "with [tag name] tag"
+            - USE BOTH logbook AND tag filters together
+            - Examples: 
+                * "tagged summary in Operations" → filter by BOTH
+                * "Operations entries with Alarm tag" → filter by BOTH
+            
+            2. LOGBOOK + TAG CONCEPT (without explicit "tagged"):
+            - Filter by logbook only
+            - Put tag concept in semanticQuery
+            - Examples:
+                * "controls commissioning interlock testing" → logbook filter only
+                * "Operations alarm events" → logbook filter only
+            
+            3. TAG ONLY (no logbook mentioned):
+            - Use tag filter
+            - Examples:
+                * "show me alarm entries" → tag filter only
+                * "maintenance logs" → tag filter only
+            
+            4. LOGBOOK ONLY:
+            - Use logbook filter
+            
+            5. NEITHER:
+            - No filter, semantic search only
+            
             Output format:
             - Return ONLY a JSON object with the fields:
               {
@@ -105,8 +148,12 @@ public class QueryPlannerService {
         String json = extractJson(rawResponse);
 
         try {
-            return objectMapper.readValue(json, QueryPlan.class);
-        } catch (Exception e) {
+            QueryPlan plan = objectMapper.readValue(json, QueryPlan.class);
+            logger.info("Parsed QueryPlan: semanticQuery: '{}', filterExpression: '{}'",
+                plan.getSemanticQuery(), plan.getFilterExpression());
+            return plan;
+        }
+        catch (Exception e) {
             logger.warn("JSON parsing failed, using fallback: {}", e.getMessage());
             // Fallback: if parsing fails
             QueryPlan fallback = new QueryPlan();
@@ -114,7 +161,7 @@ public class QueryPlannerService {
             fallback.setFilterExpression(null);
             return fallback;
         }
-      }, userQuery);
+        }, userQuery);
     }
      private QueryPlan executeWithRetry(java.util.function.Supplier<QueryPlan> operation, String userQuery) {
         Exception lastException = null;
