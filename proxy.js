@@ -36,7 +36,7 @@ app.post('/api/search/semantic', async (req, res) => {
     const backendUrl = 'http://127.0.0.1:3000/api/search/semantic';
     console.log('[SEARCH] Starting search...');
     console.log('[SEARCH] Query:', req.body.query);
-    console.log('[SEARCH] Filters:', {
+    console.log('[SEARCH] UI Filters:', {
       logbooks: req.body.logbooks,
       tags: req.body.tags,
       dateRange: `${req.body.createdDateFrom || 'any'} to ${req.body.createdDateTo || 'any'}`
@@ -56,6 +56,7 @@ app.post('/api/search/semantic', async (req, res) => {
     let payload = text;
     try { 
       payload = JSON.parse(text);
+      payload._searchStartMs = start;
       console.log(`[SEARCH] Found ${payload.hits?.length || 0} results`);
     } catch {}
 
@@ -70,14 +71,16 @@ app.post('/api/search/semantic', async (req, res) => {
 // Proxy POST /api/search/analyze
 app.post('/api/search/analyze', async (req, res) => {
   const start = Date.now();
+  const searchStartMs = req.body._searchStartMs;
   try {
     const backendUrl = 'http://127.0.0.1:3000/api/search/analyze';
+    const { _searchStartMs, ...forwardBody } = req.body;
     console.log('[ANALYSIS] Starting analysis...');
 
     const response = await fetch(backendUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req.body),
+      body: JSON.stringify(forwardBody),
     });
 
     const text = await response.text();
@@ -85,6 +88,10 @@ app.post('/api/search/analyze', async (req, res) => {
     
     console.log(`[ANALYSIS] Completed in ${duration}s`);
     
+     if (searchStartMs) {
+      const totalDuration = ((Date.now() - searchStartMs) / 1000).toFixed(2);
+      console.log(`[ADVANCED SEARCH] Completed in ${totalDuration}s`);
+    }
     let payload = text;
     try { payload = JSON.parse(text); } catch {}
 

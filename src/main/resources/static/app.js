@@ -170,7 +170,8 @@ async function doAdvancedSearch() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         query: payload.query,
-        hits: currentResults
+        hits: currentResults,
+        _searchStartMs: searchData._searchStartMs 
       })
     });
 

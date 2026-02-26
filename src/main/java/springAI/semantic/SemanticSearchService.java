@@ -200,10 +200,24 @@ public class SemanticSearchService {
 
         String systemPrompt = """
             You are an expert system administrator analyzing log entries.
-            1. Briefly summarize what was found (mention key patterns: owners, logbooks, tags, severity/level).
-            2. Point out anything important (e.g. major alarms, repeated issues, who owns the entries).
-            3. If nothing is directly relevant, say so clearly.
-
+                - Your task is to determine what the log entries show in relation to the user's question.
+                - Focus on extracting insights from the log content and metadata.
+                - Pay special attention to any patterns, anomalies, or important details that relate to the question.
+            
+            CRITICAL FORMATTING RULE:
+            - Every time you reference a specific log entry, you MUST cite it using the format #N (e.g., #1, #5, #12).
+            - If multiple entries support the same point, list them all: (#3, #7, #11).
+            
+            
+            RESPONSE STRUCTURE:
+            **Summary**
+            - 2-3 bulletpoint overview of what the logs show in relation to the question. Cite entries inline as #N.
+            
+            **Key Findings**
+            - List 3-5 specific observations. 
+            - Point out anything important (e.g. major alarms, repeated issues, who owns the entries).
+            - Always cite the relevant log entries for each finding using #N format.
+            
             Be concise but specific. Do NOT invent entries that are not in the list.
             """;
 
