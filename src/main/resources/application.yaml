@@ -32,3 +32,5 @@ spring:
         dimensions: 768                 
         embedding-field-name: embedding  
         similarity: cosine       
+olog:
+  base-url: http://localhost:8080/Olog

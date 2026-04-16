@@ -1,33 +1,38 @@
 package springAI.semantic;
 
 import java.util.List;
-
+//cleaned 
 public class OperationLogDocument {
 
-    private String description;
     private String id;
     private String owner;
-    private String createdDate;
-    private String eventStart;
+    private String title;
+    private String description;
+    private String source;
     private String level;
     private String state;
-    private String logbooksName;
+    private String createdDate;
+    private String modifyDate;
+   
+    private List<String> logbooksName; 
     private List<String> tagsName;
+    private List<String> eventsName;
+    
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
 
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
-
     public String getOwner() { return owner; }
     public void setOwner(String owner) { this.owner = owner; }
 
-    public String getCreatedDate() { return createdDate; }
-    public void setCreatedDate(String createdDate) { this.createdDate = createdDate; }
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
 
-    public String getEventStart() { return eventStart; }
-    public void setEventStart(String eventStart) { this.eventStart = eventStart; }
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+
+    public String getSource() { return source; }
+    public void setSource(String source) { this.source = source; }
 
     public String getLevel() { return level; }
     public void setLevel(String level) { this.level = level; }
@@ -35,9 +40,18 @@ public class OperationLogDocument {
     public String getState() { return state; }
     public void setState(String state) { this.state = state; }
 
-    public String getLogbooksName() { return logbooksName; }
-    public void setLogbooksName(String logbooksName) { this.logbooksName = logbooksName; }
+    public String getCreatedDate() { return createdDate; }
+    public void setCreatedDate(String createdDate) { this.createdDate = createdDate; }
+
+    public String getModifyDate() { return modifyDate; }
+    public void setModifyDate(String modifyDate) { this.modifyDate = modifyDate; }
+
+    public List<String> getLogbooksName() { return logbooksName; }
+    public void setLogbooksName(List<String> logbooksName) { this.logbooksName = logbooksName; }
 
     public List<String> getTagsName() { return tagsName; }
     public void setTagsName(List<String> tagsName) { this.tagsName = tagsName; }
+    
+    public List<String> getEventsName() { return eventsName; }
+    public void setEventsName(List<String> eventsName) { this.eventsName = eventsName; }
 }

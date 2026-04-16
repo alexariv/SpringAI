@@ -1,5 +1,7 @@
 package springAI.semantic;
 
+import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -15,14 +17,24 @@ public class QueryPlannerService {
 
     private final ChatClient chatClient;
     private final ObjectMapper objectMapper;
+    private final MetadataService metadataService;
 
     public QueryPlannerService(ChatClient.Builder chatClientBuilder,
-                               ObjectMapper objectMapper) {
+                               ObjectMapper objectMapper,
+                               MetadataService metadataService) {
         this.chatClient = chatClientBuilder.build();
         this.objectMapper = objectMapper;
+        this.metadataService = metadataService;
     }
 
     public QueryPlan plan(String userQuery) {
+        String tagOptions = metadataService.getTags().stream()
+                .map(t -> "- \"" + t + "\"")
+                .collect(Collectors.joining("\n"));
+
+        String logbookOptions = metadataService.getLogbooks().stream()
+                .map(l -> "- \"" + l + "\"")
+                .collect(Collectors.joining("\n"));
         String systemPrompt = """
            You are a query parser for an operation log search system.
             1. Extract semantic concepts for text search (goes in "semanticQuery")
@@ -46,59 +58,17 @@ public class QueryPlannerService {
                 - level        
                 - logbooks_name  
                 - tags_name     
-
-            logbooks_name options (case-sensitive):
-            - "Acc Control Software"
-            - "Controls Commissioning"
-            - "Diagnositics"
-            - "Electronics Maintenance"
-            - "Fault Reports"
-            - "gbassi"
-            - "LOTO"
-            - "Machine Physics"
-            - "Mechanical Technicians"
-            - "Operations"
             
+            logbooks_name options (case-sensitive):
+            %s
+
             tags_name options (case-sensitive):
-            - "Active Interlock"
-            - "Alarm"
-            - "ARMs"
-            - "Authorization"
-            - "Beam Available"
-            - "Beam Dump"
-            - "Beamline"
-            - "Call In/Called"
-            - "Checklists"
-            - "Controls"
-            - "Cryo"
-            - "Diagnostics"
-            - "EPS/PPS"
-            - "Fault"
-            - "Feedback"
-            - "FLOCO"
-            - "Injection"
-            - "Interlock Tests"
-            - "Maintenance"
-            - "MASAR"
-            - "Power Supplies"
-            - "RCT"
-            - "Reference"
-            - "RF Systems"
-            - "SoftIOC"
-            - "Start Shift"
-            - "Studies"
-            - "Summary"
-            - "Testing"
-            - "Timely Order"
-            - "Timing Systems"
-            - "Utilities"
-            - "Vacuum"
-            - "Work Permits"
+            %s
 
             level options: "Info", "Urgent", "Warning", "Error"
             state options: "Active", "Inactive"
 
-             METADATA FILTERING STRATEGY:
+            METADATA FILTERING STRATEGY:
             Tags are optional on entries, so be inclusive. Follow these rules IN ORDER:
             
             1. EXPLICIT TAG REQUEST (highest priority):

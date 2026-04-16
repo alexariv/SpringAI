@@ -1,15 +1,15 @@
 package springAI.semantic;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.elasticsearch.ElasticsearchVectorStore;
-import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import java.util.stream.Collectors;
-
-import java.util.ArrayList;
-import java.util.List;
 
 @Service
 public class SemanticSearchService {
@@ -88,25 +88,20 @@ public class SemanticSearchService {
             fieldFilters.add("(" + String.join(" && ", createdParts) + ")");
         }
 
-        // Build for eventStart
-        List<String> eventParts = new ArrayList<>();
-        if (hasFrom) {
-            eventParts.add("eventStart >= '" + fromDate + "'");
-        }
-        if (hasTo) {
-            eventParts.add("eventStart < '" + toDate + "'");
-        }
-        if (!eventParts.isEmpty()) {
-            fieldFilters.add("(" + String.join(" && ", eventParts) + ")");
+        // Build for modifyDate
+       List<String> modifyParts = new ArrayList<>();
+        if (hasFrom) modifyParts.add("modifyDate >= '" + fromDate + "'");
+        if (hasTo)   modifyParts.add("modifyDate < '"  + toDate   + "'");
+        if (!modifyParts.isEmpty()) {
+            fieldFilters.add("(" + String.join(" && ", modifyParts) + ")");
         }
 
-        if (fieldFilters.isEmpty()) {
-            return null;
-        }
+        if (fieldFilters.isEmpty()) return null;
 
-        // Either createdDate in range OR eventStart in range
+        // Entry falls in range if either createdDate OR modifyDate matches
         return "(" + String.join(" || ", fieldFilters) + ")";
     }
+
     
     private String buildlogbookTagFilter(List<String> logbooks, List<String> tags) {
         List<String> parts = new ArrayList<>();
@@ -164,21 +159,31 @@ public class SemanticSearchService {
         for (int i = 0; i < hits.size(); i++) {
             SearchHitDto h = hits.get(i);
             sb.append("Entry #").append(i + 1).append(":\n");
-            sb.append("description: ").append(h.getContent()).append("\n");
+            sb.append("title and description: ").append(h.getContent()).append("\n");
 
             if (h.getMetadata() != null) {
                 Object owner = h.getMetadata().get("owner");
+                Object title = h.getMetadata().get("title");
                 Object createdDate = h.getMetadata().get("createdDate");
+                Object modifyDate = h.getMetadata().get("modifyDate");
                 Object level = h.getMetadata().get("level");
                 Object state = h.getMetadata().get("state");
                 Object logbook = h.getMetadata().get("logbooks_name");
                 Object tags = h.getMetadata().get("tags_name");
+                Object events = h.getMetadata().get("events_name");
+
 
                 if (owner != null) {
                     sb.append("owner: ").append(owner).append("\n");
                 }
+                if (title != null) {
+                    sb.append("title: ").append(title).append("\n");
+                }
                 if (createdDate != null) {
                     sb.append("createdDate: ").append(createdDate).append("\n");
+                }
+                if (modifyDate != null) {
+                    sb.append("modifyDate: ").append(modifyDate).append("\n");
                 }
                 if (level != null) {
                     sb.append("level: ").append(level).append("\n");
@@ -191,6 +196,9 @@ public class SemanticSearchService {
                 }
                 if (tags != null) {
                     sb.append("tags: ").append(tags).append("\n");
+                }
+                if (events != null) {
+                    sb.append("events: ").append(events).append("\n");
                 }
             }
             sb.append("\n");

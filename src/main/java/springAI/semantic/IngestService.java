@@ -6,8 +6,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.elasticsearch.ElasticsearchVectorStore;
@@ -21,6 +19,9 @@ import co.elastic.clients.elasticsearch.core.search.Hit;
 
 @Service
 public class IngestService {
+    //azure only allowed up to 96 per bach
+    private static final int PAGE_SIZE = 50;
+    private static final int BATCH_SIZE = 50;
 
     private final ElasticsearchClient esClient;
     private final ElasticsearchVectorStore vectorStore;
@@ -32,8 +33,6 @@ public class IngestService {
     }
 
     public void ingestAll() throws IOException {
-
-    final int PAGE_SIZE = 50;
     int totalIngested = 0;
     String lastId = null;
 
@@ -42,9 +41,9 @@ public class IngestService {
 
         SearchResponse<Map> response = esClient.search(
             s -> {
-                s.index("operation_logs")
+                s.index("operation_logs") //look at this I think it needs to be changed 
                  .size(PAGE_SIZE)
-                 .sort(sort -> sort.field(f -> f.field("@id.keyword")
+                 .sort(sort -> sort.field(f -> f.field("id")
                      .order(SortOrder.Asc)));
                 if (currentLastId != null) {
                     s.searchAfter(FieldValue.of(currentLastId));
@@ -61,13 +60,12 @@ public class IngestService {
         totalIngested += hits.size();
         System.out.println("Current ingest total: " + totalIngested);
 
-        lastId = (String) hits.get(hits.size() - 1).source().get("@id");
+        lastId = (String) hits.get(hits.size() - 1).source().get("id");
         if (hits.size() < PAGE_SIZE) break;
     }
 
     System.out.println("Total ingested: " + totalIngested);
 }
-    private static final int BATCH_SIZE = 50;
     private void processHits(List<Hit<Map>> hits) {
 
     List<Document> docsToInsert = new ArrayList<>();
@@ -84,8 +82,9 @@ public class IngestService {
 
         OperationLogDocument flat = flatten(src);
 
-        if (flat.getDescription() == null || flat.getDescription().isBlank()) {
-            continue;  // nothing to embed
+        String embeddings = buildEmbeddings(flat.getTitle(), flat.getDescription());
+        if (embeddings == null || embeddings.isBlank()) {
+            continue;  // nothing to embed but there should always be something to embed 
         }
 
         Map<String, Object> metadata = new HashMap<>();
@@ -97,99 +96,105 @@ public class IngestService {
         if (flat.getOwner() != null) {
             metadata.put("owner", flat.getOwner());
         }
-        if (flat.getCreatedDate() != null) {
-            metadata.put("createdDate", flat.getCreatedDate());
+        if (flat.getTitle() != null) {
+            metadata.put("title", flat.getTitle());
         }
-        if (flat.getEventStart() != null) {
-            metadata.put("eventStart", flat.getEventStart());
+        if (flat.getSource() != null) {
+            metadata.put("source", flat.getSource());
         }
-        if (flat.getLevel() != null) {
+         if (flat.getLevel() != null) {
             metadata.put("level", flat.getLevel());
         }
         if (flat.getState() != null) {
             metadata.put("state", flat.getState());
         }
-        if (flat.getLogbooksName() != null) {
-            metadata.put("logbooks_name", flat.getLogbooksName());
+        if (flat.getCreatedDate() != null) {
+            metadata.put("createdDate", flat.getCreatedDate());
         }
-
-        // tags_name- non-null list
-        List<String> tags = flat.getTagsName();
-        if (tags == null) {
-            tags = Collections.emptyList();
+        if (flat.getModifyDate() != null) {
+            metadata.put("modifyDate", flat.getModifyDate());
         }
-        metadata.put("tags_name", tags);
+    
+       // Flattened nested fields — required for Spring AI Filter.Expression compatibility
+       metadata.put("logbooks_name", flat.getLogbooksName() != null
+            ? flat.getLogbooksName() : Collections.emptyList());
+        metadata.put("tags_name", flat.getTagsName() != null
+            ? flat.getTagsName() : Collections.emptyList());
+        metadata.put("events_name", flat.getEventsName() != null
+             ? flat.getEventsName() : Collections.emptyList());
 
-        // description (content) embedded text
-        Document doc = new Document(flat.getDescription(), metadata);
-        docsToInsert.add(doc);
+        docsToInsert.add(new Document(embeddings, metadata));
     }
-    System.out.println(">>> Docs with description to embed: " + docsToInsert.size());
-    if (!docsToInsert.isEmpty()) {
+    System.out.println(">>> Docs to embed (title & description): " + docsToInsert.size());
+
         for (int i = 0; i < docsToInsert.size(); i += BATCH_SIZE) {
             List<Document> batch = docsToInsert.subList(i, 
                 Math.min(i + BATCH_SIZE, docsToInsert.size()));
             vectorStore.add(batch);
         }
+    }
+
+private String buildEmbeddings(String title, String description) {
+        boolean hasTitle       = title != null && !title.isBlank();
+        boolean hasDescription = description != null && !description.isBlank();
+
+        if (hasTitle && hasDescription) return title.strip() + "\n" + description.strip();
+        if (hasTitle)                   return title.strip();
+        if (hasDescription)             return description.strip();
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private OperationLogDocument flatten(Map<String, Object> src) {
+        OperationLogDocument doc = new OperationLogDocument();
+
+        doc.setId(toString(src.get("id")));
+        doc.setOwner((String) src.get("owner"));
+        doc.setTitle((String) src.get("title"));
+        doc.setDescription((String) src.get("description"));
+        doc.setSource((String) src.get("source"));
+        doc.setLevel((String) src.get("level"));
+        doc.setState((String) src.get("state"));
+        doc.setCreatedDate(toString(src.get("createdDate")));
+        doc.setModifyDate(toString(src.get("modifyDate")));
+
+        doc.setLogbooksName(extractNestedNames(src, "logbooks", "name"));
+        doc.setTagsName(extractNestedNames(src, "tags", "name"));
+        doc.setEventsName(extractNestedNames(src, "events", "name"));
+
+        return doc;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> extractNestedNames(Map<String, Object> src,
+                                            String nestedField,
+                                            String nameKey) {
+        try {
+            Object raw = src.get(nestedField);
+            if (raw == null) return Collections.emptyList();
+
+            List<String> names = new ArrayList<>();
+
+            if (raw instanceof List) {
+                for (Object item : (List<?>) raw) {
+                    if (item instanceof Map) {
+                        String name = (String) ((Map<String, Object>) item).get(nameKey);
+                        if (name != null) names.add(name);
+                    }
+                }
+            } else if (raw instanceof Map) {
+                String name = (String) ((Map<String, Object>) raw).get(nameKey);
+                if (name != null) names.add(name);
+            }
+
+            return names;
+        } catch (Exception e) {
+            return Collections.emptyList();
         }
     }
 
-
-    private OperationLogDocument flatten(Map<String, Object> src) {
-
-        OperationLogDocument doc = new OperationLogDocument();
-
-        doc.setId((String) src.get("@id"));
-        doc.setDescription((String) src.get("description"));
-        doc.setOwner((String) src.get("@owner"));
-        doc.setCreatedDate((String) src.get("@createdDate"));
-        doc.setEventStart((String) src.get("@eventStart"));
-        doc.setLevel((String) src.get("@level"));
-        doc.setState((String) src.get("@state"));
-
-        // flatten logbooks to logbooks_name
-        try {
-            Map<String, Object> logbooks = (Map<String, Object>) src.get("logbooks");
-            if (logbooks != null) {
-                Map<String, Object> logbookObj =
-                        (Map<String, Object>) logbooks.get("logbook");
-                if (logbookObj != null) {
-                    doc.setLogbooksName((String) logbookObj.get("@name"));
-                }
-            }
-        } catch (Exception e) {
-            doc.setLogbooksName(null);
-        }
-
-        // flatten tags to tags_name
-        try {
-            Map<String, Object> tags = (Map<String, Object>) src.get("tags");
-            if (tags != null) {
-                Object tagObj = tags.get("tag");
-
-                List<String> names = new ArrayList<>();
-
-                if (tagObj instanceof List) {
-                    List<Map<String, Object>> tagList = (List<Map<String, Object>>) tagObj;
-                    names = tagList.stream()
-                            .map(t -> (String) t.get("@name"))
-                            .filter(Objects::nonNull)
-                            .collect(Collectors.toList());
-                } else if (tagObj instanceof Map) {
-                    Map<String, Object> singleTag = (Map<String, Object>) tagObj;
-                    String name = (String) singleTag.get("@name");
-                    if (name != null) {
-                        names.add(name);
-                    }
-                }
-
-                doc.setTagsName(names);
-            }
-        } catch (Exception e) {
-            doc.setTagsName(Collections.emptyList());
-        }
-
-        return doc;
+    private String toString(Object value) {
+        return value != null ? value.toString() : null;
     }
 }
 
