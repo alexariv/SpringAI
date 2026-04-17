@@ -58,8 +58,11 @@ public class SemanticSearchService {
     }
     
     public AnalysisResponse analyze(AnalysisRequest request) {
-    String analysis = analyzeWithLlm(request.getQuery(), request.getHits());
-    return new AnalysisResponse(analysis);
+    SearchQueryRequest searchReq = new SearchQueryRequest();
+    searchReq.setQuery(request.getQuery());
+    SimpleSearchResponse searchResult = search(searchReq);
+    String analysis = analyzeWithLlm(request.getQuery(), searchResult.getHits());
+    return new AnalysisResponse(analysis, searchResult.getHits());
     }
     
     /**
