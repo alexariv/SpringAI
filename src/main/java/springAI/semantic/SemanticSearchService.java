@@ -1,15 +1,15 @@
 package springAI.semantic;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.elasticsearch.ElasticsearchVectorStore;
-import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import java.util.stream.Collectors;
-
-import java.util.ArrayList;
-import java.util.List;
 
 @Service
 public class SemanticSearchService {
@@ -58,8 +58,11 @@ public class SemanticSearchService {
     }
     
     public AnalysisResponse analyze(AnalysisRequest request) {
-    String analysis = analyzeWithLlm(request.getQuery(), request.getHits());
-    return new AnalysisResponse(analysis);
+    SearchQueryRequest searchReq = new SearchQueryRequest();
+    searchReq.setQuery(request.getQuery());
+    SimpleSearchResponse searchResult = search(searchReq);
+    String analysis = analyzeWithLlm(request.getQuery(), searchResult.getHits());
+    return new AnalysisResponse(analysis, searchResult.getHits());
     }
     
     /**
